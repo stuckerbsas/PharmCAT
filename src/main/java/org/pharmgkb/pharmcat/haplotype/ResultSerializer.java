@@ -89,7 +89,7 @@ public class ResultSerializer {
       MatchData matchData = call.getMatchData();
 
       builder.append("<h3>")
-          .append(call.getGene())
+          .append("<a name=\"" + call.getGene() + "\">" + call.getGene() +" </a>"  )
           .append("</h3>");
 
       builder.append("<ul>");

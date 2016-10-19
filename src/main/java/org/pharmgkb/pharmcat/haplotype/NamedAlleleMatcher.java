@@ -14,6 +14,7 @@ import org.pharmgkb.common.io.util.CliHelper;
 import org.pharmgkb.pharmcat.definition.model.NamedAllele;
 import org.pharmgkb.pharmcat.definition.model.VariantLocus;
 import org.pharmgkb.pharmcat.haplotype.model.DiplotypeMatch;
+import org.pharmgkb.pharmcat.haplotype.model.GeneCall;
 import org.pharmgkb.pharmcat.haplotype.model.Result;
 
 
@@ -62,7 +63,8 @@ public class NamedAlleleMatcher {
           .addOption("d", "definition-dir", "directory of allele definition files", true, "d")
           .addOption("vcf", "vcf-in", "VCF file", true, "vcf")
           .addOption("json", "json-out", "file to save results to (in JSON format)", false, "json")
-          .addOption("html", "html-out", "file to save results to (in HTML format)", false, "html");
+          .addOption("html", "html-out", "file to save results to (in HTML format)", false, "html")
+          .addOption("ref", "reference", "assume reference for scoring missing positions");
 
       if (!cliHelper.parse(args)) {
         System.exit(1);
@@ -78,15 +80,40 @@ public class NamedAlleleMatcher {
         System.exit(1);
       }
 
-      NamedAlleleMatcher namedAlleleMatcher = new NamedAlleleMatcher(definitionReader);
+      NamedAlleleMatcher namedAlleleMatcher;
+
+      if (cliHelper.hasOption("ref")) {
+        System.out.println("Reference assumed for scoring missing positions");
+        namedAlleleMatcher = new NamedAlleleMatcher(definitionReader,true, false);
+      } else {
+        System.out.println("Reference not assumed for scoring missing positions");
+        namedAlleleMatcher = new NamedAlleleMatcher(definitionReader);
+      }
+
       Result result = namedAlleleMatcher.call(vcfFile);
 
       ResultSerializer resultSerializer = new ResultSerializer();
+      resultSerializer.alwaysShowUnmatchedHaplotypes(true);
+
       if (cliHelper.hasOption("json")) {
         resultSerializer.toJson(result, cliHelper.getPath("json"));
       }
       if (cliHelper.hasOption("html")) {
         resultSerializer.toHtml(result, cliHelper.getPath("html"));
+      }
+      if (cliHelper.isVerbose()){
+        for (GeneCall geneCalls : result.getGeneCalls()) {
+          System.out.println("Gene: " + geneCalls.getGene());
+          System.out.print("Diplotypes: ");
+          geneCalls.getDiplotypes().forEach(f-> System.out.print(f.toString() +"\t(score:"+ f.getScore() + ") "));
+          System.out.print("\nMissing positions (" + geneCalls.getMatchData().getMissingPositions().size() + " out of " +
+              (geneCalls.getMatchData().getMissingPositions().size() +  geneCalls.getVariants().size()) + "): ");
+          geneCalls.getMatchData().getMissingPositions().forEach(f-> System.out.print(geneCalls.getChromosome() + " " + f.getVcfPosition() + "   "));
+          System.out.print("\nUncallable (" + geneCalls.getUncallableHaplotypes().size()  + "): " );
+          geneCalls.getUncallableHaplotypes().forEach(f->System.out.print(f + "  "));
+          System.out.println("\n");
+        }
+
       }
 
     } catch (Exception ex) {

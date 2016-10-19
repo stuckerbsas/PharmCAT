@@ -51,9 +51,9 @@
         <JavaCodeStyleSettings>
           <option name="CLASS_NAMES_IN_JAVADOC" value="3" />
         </JavaCodeStyleSettings>
-        <MarkdownNavigatorCodeStyleSettings>
-          <option name="RIGHT_MARGIN" value="-1" />
-        </MarkdownNavigatorCodeStyleSettings>
+        <MultiMarkdownCodeStyleSettings>
+          <option name="RIGHT_MARGIN" value="72" />
+        </MultiMarkdownCodeStyleSettings>
         <XML>
           <option name="XML_KEEP_WHITESPACES" value="true" />
           <option name="XML_TEXT_WRAP" value="0" />
