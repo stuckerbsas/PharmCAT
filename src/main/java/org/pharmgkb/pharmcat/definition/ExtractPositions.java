@@ -10,6 +10,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
+import java.util.TreeMap;
 import javax.annotation.Nonnull;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -39,9 +41,10 @@ public class ExtractPositions {
       "##fileDate=2015-08-04\n" +
       "##source=Electronic, version: hg38_2.0.1\n" +
       "##reference=hg38\n" +
+      "##INFO=<ID=PX,Number=.,Type=String,Description=\"PGX\">\n" +
       "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n" +
       "##FILTER=<ID=PASS,Description=\"All filters passed\">\n" +
-      "#CHROM  POS  ID REF  ALT  QUAL FILTER INFO FORMAT PharmCAT\n";
+      "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tPharmCAT\n";
 
 
   // Default constructor
@@ -88,7 +91,8 @@ public class ExtractPositions {
         System.out.println("Did not find any allele definitions at " + ps_definitionDir);
         System.exit(1);
       }
-      StringBuilder vcfString = getPositions(definitionReader);
+      StringBuilder vcfString = sortVcf(getPositions(definitionReader));
+
       try (PrintWriter writer = new PrintWriter(String.valueOf(ps_outputVcf), "UTF-8")) {  // close PrintWriter with try
         writer.print(vcfString);
         writer.flush();
@@ -114,6 +118,7 @@ public class ExtractPositions {
     }
     return  builder;
   }
+
 
   /*
   * Helper method to convert repeats into standard format
@@ -182,6 +187,47 @@ public class ExtractPositions {
 
 
   /*
+  * Simple sorting of Vcf file on chr and position
+  *
+   */
+  private StringBuilder sortVcf (StringBuilder vcfString) {
+    StringBuilder sortedVcfString = new StringBuilder();
+    Map<Integer, Map<Integer, String>> treeMapChr = new TreeMap<>();
+    for (String vcfLine: vcfString.toString().split("\n")) {
+      if (!vcfLine.startsWith("#")){
+        String[] vcfFields = vcfLine.split("\t");
+        Map<Integer, String> treeMapPosition = new TreeMap<>();
+        int chr = Integer.parseInt(vcfFields[0].replace("chr", ""));
+        int position = Integer.parseInt(vcfFields[1]);
+
+        if (treeMapChr.containsKey(chr)) {
+          Map<Integer, String> treeMapPositionCurrent = treeMapChr.get(chr);
+          treeMapPositionCurrent.put(position, vcfLine);
+          treeMapChr.put(chr, treeMapPositionCurrent);
+        }
+        else {
+          treeMapPosition.put(position, vcfLine);
+          treeMapChr.put(chr, treeMapPosition);
+        }
+      }
+      else {
+        sortedVcfString.append(vcfLine + "\n");
+      }
+    }
+
+    for (Map chrMap: treeMapChr.values()) {
+      for (Object posMap: chrMap.values()) {
+        sortedVcfString.append(posMap.toString() + "\n");
+      }
+    }
+    return sortedVcfString;
+  }
+
+
+
+
+
+  /*
   * Helper method to convert repeats into standard format
   */
   public static String[] getVcfLineFromDefinition(@Nonnull DefinitionReader definitionReader, @Nonnull String gene, @Nonnull VariantLocus variantLocus,
@@ -210,7 +256,7 @@ public class ExtractPositions {
       l.removeAll(Collections.singleton(null));
 
 
-      starAlleles.add(gene + ":" + namedAllele.getName().replace(" ","")+"[" + l.size() +"]" +"=" + namedAllele.getAllele(variantLocus));
+      starAlleles.add(gene + ":" + namedAllele.getName().replace(" ","")+"[" + l.size() +"]" +"is" + namedAllele.getAllele(variantLocus));
     });
 
     if (alts.size() == 0 ) {
@@ -218,6 +264,7 @@ public class ExtractPositions {
     }
 
     String finalAllele = expandAllele(allele);
+    alts.remove(finalAllele); // get rid of any lingering duplicates
 
     if (alts.contains("Y")) {
       alts.remove("Y");
@@ -253,7 +300,7 @@ public class ExtractPositions {
     }
 
     String alt = String.join(",", alts);
-    String starAllele = String.join(",", starAlleles);
+    String starAllele = "PX=" + String.join(",", starAlleles)+";";
 
     String[] vcfFields = {
         chr,
