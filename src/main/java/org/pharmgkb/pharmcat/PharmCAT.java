@@ -68,7 +68,7 @@ public class PharmCAT {
       }
       Path definitionsDir = null;
       if (cliHelper.hasOption("na")) {
-        definitionsDir = cliHelper.getValidDirectory("l", false);
+        definitionsDir = cliHelper.getValidDirectory("na", false);
       }
 
       String outputFile = null;
